@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html ng-app="app">
+<head lang="en">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular.min.js"></script>
+
+    <meta charset="UTF-8">
+    <title></title>
+    <style type="text/css">
+        input.ng-invalid.ng-dirty {
+            border: 1px solid red;
+        }
+    </style>
+</head>
+<body ng-controller="SimpleCtrl">
+
+
+<form ng-submit="submitForm();" name="frm">
+    <input name="author" type="text" ng-model="author" ng-minlength="3" required>
+    <span ng-show="frm.author.$dirty && frm.author.$error.required">Required</span><br/>
+    <span ng-show="frm.author.$dirty && frm.author.$error.minlength">Too short</span><br/>
+    <input name="message" type="text" ng-model="message" required><br/>
+    <input type="submit" ng-disabled="frm.$invalid">
+
+    <br/>
+    Author: {{author}}<br/>
+    Message: {{message}}
+</form>
+
+<ul>
+    <li ng-repeat="message in messages">
+        <span ng-hide="editableMap[$index].editable">{{message.id}} {{message.author}} - {{message.message}}</span>
+        <span ng-show="editableMap[$index].editable">
+            <input name="author" ng-model="messageInEdit.author" type="text" ng-minlength="3" required>
+            <input name="message" type="text" ng-model="messageInEdit.message" required>
+        </span>
+        <a href="" ng-click="toggleEditable($index)" ng-hide="editableMap[$index].editable">edit</a>
+        <a href="" ng-click="updateMessage(messageInEdit)" ng-show="editableMap[$index].editable">update</a>
+        <a href="" ng-click="toggleEditable($index)" ng-show="editableMap[$index].editable">cancel</a>
+        <a href="" ng-click="remove($index)">x</a>
+    </li>
+</ul>
+<script>
+    var app = angular.module("app", []);
+    app.controller("SimpleCtrl", function ($scope, $http) {
+        $scope.messageInEdit={};
+        $scope.submitForm = function submitForm() {
+            var dataObject = {
+                author: $scope.author
+                , message: $scope.message
+            };
+            var responsePromise = $http.post("/webapi/messages/addMessage", dataObject, {});
+            responsePromise.success(function (dataFromServer, status, headers, config) {
+                $scope.updateJSON();
+            });
+            responsePromise.error(function (data, status, headers, config) {
+                alert("error")
+            });
+
+        };
+        $scope.updateJSON = function () {
+            $http.get('/webapi/messages').
+                    success(function (data, status, headers, config) {
+                        $scope.messages = data;
+                        $scope.editableMap = {};
+                        for (var i = 0; i < $scope.messages.length; i++) {
+                            $scope.editableMap[i] = {"id": $scope.messages[i].id, "editable": false};
+                            console.log($scope.editableMap[i].id + ", " + $scope.editableMap[i].editable)
+                        }
+                    }).
+                    error(function (data, status, headers, config) {
+                        // called asynchronously if an error occurs
+                        // or server returns response with an error status.
+                    });
+        };
+        $scope.remove = function (id) {
+            var responsePromise = $http.delete("/webapi/messages/delete/" + $scope.messages[id].id);
+            responsePromise.success(function (dataFromServer, status, headers, config) {
+                $scope.updateJSON();
+            });
+            responsePromise.error(function (data, status, headers, config) {
+                alert("error")
+            });
+        };
+        $scope.updateMessage = function (message) {
+            var responsePromise = $http.put("/webapi/messages/updateMessage", message, {});
+            responsePromise.success(function (dataFromServer, status, headers, config) {
+                $scope.messages[message.id] = angular.copy(message);
+                $scope.messageInEdit = {};
+                $scope.updateJSON();
+            });
+            responsePromise.error(function (data, status, headers, config) {
+                alert("error")
+            });
+
+            /* var responsePromise = $http.delete("/webapi/messages/delete/" + $scope.messages[id].id);
+             responsePromise.success(function(dataFromServer, status, headers, config) {
+             $scope.updateJSON();
+             });
+             responsePromise.error(function(data, status, headers, config) {
+             alert("error")
+             });*/
+        };
+        $scope.toggleEditable = function (id) {
+            $scope.editableMap[id].editable = !$scope.editableMap[id].editable;
+            $scope.messageInEdit = angular.copy($scope.messages[id]);
+        };
+        $scope.updateJSON();
+
+
+    })
+</script>
+</body>
+</html>
